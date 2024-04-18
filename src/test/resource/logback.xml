@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="true">
+
+	<timestamp key="TIMESTAMP" datePattern="yyyy-MM-dd"/>
+	<property name="LOGS_PATH" value="D:/my_dev/SpringToolSuite3/sts-bundle/logs" />
+	<property name="CONSOLE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight([%-5p]) %magenta([%thread]) [%C.%M] %logger{5} -> {msg:: %msg} %n" />
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<Pattern>${CONSOLE_PATTERN}</Pattern>
+		</encoder>
+	</appender>
+	<appender name="FILE" class="ch.qos.logback.core.FileAppender">
+		<file>${LOGS_PATH}/logback_${TIMESTAMP}.log</file>
+		<encoder>
+			<Charset>UTF-8</Charset>
+			<Pattern>${CONSOLE_PATTERN}</Pattern>
+		</encoder>
+	</appender>
+
+	<logger name="jdbc" additivity="false">
+		<level value="DEBUG"/>
+		<appender-ref ref="STDOUT"/>
+		<appender-ref ref="FILE"/>
+	</logger>
+	<logger name="jdbc.sqlonly" additivity="false">
+		<level value="DEBUG"/>
+		<appender-ref ref="STDOUT"/>
+		<appender-ref ref="FILE"/>
+	</logger>
+	<logger name="jdbc.sqltiming" additivity="false">
+		<level value="INFO"/>
+		<appender-ref ref="STDOUT"/>
+		<appender-ref ref="FILE"/>
+	</logger>
+	
+	
+	<logger name="hash.dev" additivity="false">
+		<level value="DEBUG"/>
+		<appender-ref ref="STDOUT"/>
+		<appender-ref ref="FILE"/>
+	</logger>
+	<logger name="org.springframework" additivity="false">
+		<level value="DEBUG"/>
+		<appender-ref ref="STDOUT"/>
+		<appender-ref ref="FILE"/>
+	</logger>
+	<root>
+		<level value="DEBUG"/>
+		<appender-ref ref="STDOUT"/>
+		<appender-ref ref="FILE"/>
+	</root>
+	
+</configuration>

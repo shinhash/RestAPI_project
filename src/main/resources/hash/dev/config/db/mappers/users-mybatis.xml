@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="userApiDao">
+
+	<insert id="insertUserInfo" parameterType="HashMap">
+		/*
+			queryId = insertUserInfo
+		*/
+		<![CDATA[
+		INSERT INTO HASH_SERVER.USERS(
+			  USER_ID
+			, USER_PW
+			, USER_NM
+			, REG_USER_ID
+			, REG_DT
+			, REG_IP
+			, MOD_USER_ID
+			, MOD_DT
+			, MOD_IP
+			, USE_STAT
+			)VALUES(
+			  #{userId}
+			, #{userPw}
+			, #{userNm}
+			, #{userId}
+			, DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+			, ''
+			, #{userId}
+			, DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+			, ''
+			, 'Y'
+			)
+		]]>
+	</insert>
+	
+	
+	<update id="updateUserInfo" parameterType="HashMap">
+		/*
+			queryId = updateUserInfo
+		*/
+		<![CDATA[
+		UPDATE 	HASH_SERVER.USERS 
+		   SET 	USER_NM = #{userNm},
+		   		MOD_USER_ID = #{userId},
+		   		MOD_DT = DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s'),
+		   		MOD_IP = ''
+		 WHERE	USER_ID = #{userId}
+		]]>
+	</update>
+	
+</mapper>

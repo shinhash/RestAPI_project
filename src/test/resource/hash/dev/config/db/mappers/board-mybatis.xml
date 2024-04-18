@@ -1,0 +1,538 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="boardMapperDao">
+
+	<select id="selectPostList" parameterType="HashMap" resultType="customCamelMap">
+		/*
+			queryId = selectPostList
+		*/
+		SELECT ALL_LIST_MST.* 
+		  FROM ( 
+				SELECT   ROWNUM PAGE_RN 
+					   , ALL_LIST_DTL.* 
+				  FROM ( 
+						SELECT 	ROWNUM RN, 
+								BBS_CATALOG.BBS_CATAL_NM, 
+								BBS_POST.BBS_CATAL_ID, 
+								BBS_POST.BBS_POST_ID, 
+								BBS_POST.BBS_POST_TITLE, 
+								(SELECT COUNT(1) 
+								   FROM BBS_REPLE 
+								  WHERE BBS_REPLE.BBS_POST_ID = BBS_POST.BBS_POST_ID
+								    AND BBS_REPLE.BBS_REPLE_DEL_STAT = 'N') AS POST_REPLE_CNT, 
+								(SELECT COUNT(1) 
+								   FROM BBS_VIEWS 
+								  WHERE BBS_VIEWS.BBS_POST_ID = BBS_POST.BBS_POST_ID) AS POST_VIEW_CNT, 
+								(SELECT COUNT(1)
+                                   FROM BBS_SUGGEST
+                                  WHERE BBS_SUGGEST.BBS_POST_ID = BBS_POST.BBS_POST_ID) AS POST_SUGGEST_CNT, 
+								BBS_POST.BBS_POST_REG_DATE, 
+								(SELECT IRON_USER.USER_NM 
+								   FROM IRON_USER 
+								  WHERE IRON_USER.USER_ID = BBS_POST.BBS_POST_REG_ID) AS BBS_POST_WRITER, 
+								BBS_POST.BBS_POST_REG_ID, 
+								BBS_POST.BBS_POST_MOD_DATE, 
+								BBS_POST.BBS_POST_MOD_ID, 
+								BBS_POST.BBS_POST_STATUS 
+						  FROM 	BBS_POST, BBS_CATALOG, IRON_USER 
+						 WHERE  1 = 1 
+						   AND  BBS_POST.BBS_CATAL_ID = BBS_CATALOG.BBS_CATAL_ID 
+						   AND  BBS_POST.BBS_POST_REG_ID = IRON_USER.USER_ID(+)
+						   AND  BBS_POST.BBS_POST_STATUS = 'N' 
+							<if test="bbsCatalId != null and bbsCatalId != '' and bbsCatalId != 'ALL'">
+								AND BBS_POST.BBS_CATAL_ID = #{bbsCatalId}
+							</if>
+							<if test="selAllKey != null and selAllKey != ''">
+								AND (
+									BBS_POST.BBS_POST_TITLE LIKE '%' || #{selAllKey} || '%'
+									OR
+									BBS_POST.BBS_POST_CONTENT LIKE '%' || #{selAllKey} || '%'
+									)
+							</if>
+							<if test="selSrcKey != null and selSrcKey != ''">
+								<if test="srcTypeInfo != null and srcTypeInfo != ''">
+									<choose>
+										<when test="srcTypeInfo == 'postAll'">
+											AND (
+												BBS_POST.BBS_POST_TITLE LIKE '%' || #{selSrcKey} || '%'
+												OR
+												BBS_POST.BBS_POST_CONTENT LIKE '%' || #{selSrcKey} || '%'
+												OR
+												BBS_POST.BBS_POST_REG_ID LIKE '%' || #{selSrcKey} || '%'
+												)
+										</when>
+										<when test="srcTypeInfo == 'postTitleContent'">
+											AND (
+												BBS_POST.BBS_POST_TITLE LIKE '%' || #{selSrcKey} || '%'
+												OR
+												BBS_POST.BBS_POST_CONTENT LIKE '%' || #{selSrcKey} || '%'
+												)
+										</when>
+										<when test="srcTypeInfo == 'bbsPostRegId'">
+											AND IRON_USER.USER_NM LIKE '%' || #{selSrcKey} || '%'
+										</when>
+									</choose>
+								</if>
+						   </if>
+						ORDER BY BBS_POST.BBS_POST_REG_DATE DESC 
+						) ALL_LIST_DTL 
+				) ALL_LIST_MST 
+		WHERE 1 = 1
+		  AND ALL_LIST_MST.PAGE_RN BETWEEN ((#{pageNumInfo} - 1) * #{pageRowInfo}) + 1 AND #{pageNumInfo} * #{pageRowInfo}
+		<if test="startDt != null and startDt != ''">
+			<if test="endDt != null and endDt != ''">
+		  		AND ALL_LIST_MST.BBS_POST_REG_DATE BETWEEN #{startDt} AND #{endDt}
+			</if>
+		</if>
+	</select>
+	
+	
+	<select id="selectPostCatalInfo" parameterType="HashMap" resultType="customCamelMap">
+		/*
+			queryId = selectPostCatalInfo
+		*/
+		<![CDATA[
+		SELECT  BBS_CATAL_ID
+			  , BBS_CATAL_NM
+			  , BBS_CATAL_USE_YN
+			  , BBS_CATAL_REG_DATE
+			  , BBS_CATAL_REG_ID
+			  , BBS_CATAL_MOD_DATE
+			  , BBS_CATAL_MOD_ID
+		  FROM  BBS_CATALOG 
+		 WHERE  BBS_CATAL_USE_YN = 'Y'
+		]]>
+		 <if test="bbsCatalId != null and bbsCatalId != '' and bbsCatalId != 'ALL'">
+		   AND  BBS_CATAL_ID = #{bbsCatalId}
+		 </if>
+	</select>
+	
+
+	<select id="selectPageTotalCnt" parameterType="HashMap" resultType="int">
+		/* 
+			queryId = selectPageTotalCnt
+		*/
+		<![CDATA[
+		SELECT CASE WHEN MOD(COUNT(1),#{pageRowInfo}) > 0
+		       THEN FLOOR(COUNT(1)/#{pageRowInfo}) + 1 
+		       ELSE FLOOR(COUNT(1)/#{pageRowInfo})
+		       END PAGE_TOTAL_CNT
+		  FROM BBS_POST, IRON_USER
+		 WHERE BBS_POST.BBS_POST_STATUS = 'N'
+		   AND BBS_POST.BBS_POST_REG_ID = IRON_USER.USER_ID(+)
+		]]>
+		<if test="bbsCatalId != null and bbsCatalId != '' and bbsCatalId != 'ALL'">
+			AND BBS_CATAL_ID = #{bbsCatalId}
+		</if>
+		<if test="selAllKey != null and selAllKey != ''">
+			AND (
+				BBS_POST.BBS_POST_TITLE LIKE '%' || #{selAllKey} || '%'
+				OR
+				BBS_POST.BBS_POST_CONTENT LIKE '%' || #{selAllKey} || '%'
+				)
+		</if>
+		<if test="selSrcKey != null and selSrcKey != ''">
+			<if test="srcTypeInfo != null and srcTypeInfo != ''">
+				<choose>
+					<when test="srcTypeInfo == 'postAll'">
+						AND (
+							BBS_POST.BBS_POST_TITLE LIKE '%' || #{selSrcKey} || '%'
+							OR
+							BBS_POST.BBS_POST_CONTENT LIKE '%' || #{selSrcKey} || '%'
+							OR
+							BBS_POST.BBS_POST_REG_ID LIKE '%' || #{selSrcKey} || '%'
+							)
+					</when>
+					<when test="srcTypeInfo == 'postTitleContent'">
+						AND (
+							BBS_POST.BBS_POST_TITLE LIKE '%' || #{selSrcKey} || '%'
+							OR
+							BBS_POST.BBS_POST_CONTENT LIKE '%' || #{selSrcKey} || '%'
+							)
+					</when>
+					<when test="srcTypeInfo == 'bbsPostRegId'">
+						AND IRON_USER.USER_NM LIKE '%' || #{selSrcKey} || '%'
+					</when>
+				</choose>
+			</if>
+	   </if>
+	</select>
+	
+	
+	<resultMap id="postInfoMap" type="customCamelMap">
+		<result column="BBS_POST_CONTENT" property="BBS_POST_CONTENT" jdbcType="CLOB" javaType="java.lang.String"/>
+	</resultMap>
+	<select id="selectPostInfo" parameterType="HashMap" resultMap="postInfoMap">
+		/*
+			queryId = selectPostInfo
+		*/
+		<![CDATA[
+		SELECT 	ROWNUM AS RN,
+				BBS_POST.BBS_CATAL_ID,
+				BBS_CATALOG.BBS_CATAL_NM, 
+				BBS_POST.BBS_POST_ID,
+				BBS_POST.BBS_POST_TITLE, 
+				BBS_POST.BBS_POST_CONTENT, 
+				(SELECT COUNT(1) 
+				   FROM BBS_REPLE 
+				  WHERE BBS_REPLE.BBS_POST_ID = BBS_POST.BBS_POST_ID
+				    AND BBS_REPLE.BBS_REPLE_DEL_STAT = 'N') AS POST_REPLE_CNT, 
+				BBS_POST.BBS_POST_REG_DATE, 
+				BBS_POST.BBS_POST_REG_ID, 
+				(SELECT USER_NM FROM IRON_USER WHERE USER_ID = BBS_POST.BBS_POST_REG_ID) AS BBS_POST_REG_NM, 
+				BBS_POST.BBS_POST_MOD_DATE, 
+				BBS_POST.BBS_POST_MOD_ID, 
+				BBS_POST.BBS_POST_STATUS
+		  FROM 	BBS_POST, BBS_CATALOG
+		 WHERE  1 = 1
+		   AND  BBS_POST.BBS_CATAL_ID = BBS_CATALOG.BBS_CATAL_ID 
+		   AND  BBS_POST.BBS_POST_STATUS = 'N'
+		]]>
+		<if test="bbsPostId != null and bbsPostId != ''">
+		   AND  BBS_POST.BBS_POST_ID = #{bbsPostId}
+		</if>
+	</select>
+	
+	
+	<select id="selectRepleList" parameterType="HashMap" resultType="customCamelMap">
+		/*
+			queryId = selectRepleList
+		*/
+		<![CDATA[
+		SELECT 	ROWNUM AS RN,
+				BBS_POST_ID, 
+				BBS_REPLE_ID, 
+				BBS_REPLE_CONTENT, 
+				BBS_REPLE_REG_DATE, 
+				BBS_REPLE_REG_ID, 
+				(SELECT USER_NM FROM IRON_USER WHERE USER_ID = BBS_REPLE_REG_ID) AS BBS_REPLE_REG_NM, 
+				BBS_REPLE_MOD_DATE, 
+				BBS_REPLE_MOD_ID, 
+				BBS_REPLE_DEL_STAT
+		  FROM 	BBS_REPLE
+		 WHERE  1 = 1 
+		   AND  BBS_REPLE_DEL_STAT = 'N'
+		]]>
+		<if test="bbsPostId != null and bbsPostId != ''">
+		   AND  BBS_POST_ID = #{bbsPostId}
+		</if>		 
+		   ORDER BY BBS_REPLE_REG_DATE
+	</select>
+	
+	
+	<update id="updatePostInfo" parameterType="HashMap">
+		/*
+			queryId = updatePostInfo
+		*/
+		<![CDATA[
+		UPDATE 	BBS_POST 
+		   SET 	BBS_POST_TITLE = #{bbsPostTitle},
+		   		BBS_POST_CONTENT = #{bbsPostContent},
+		   		BBS_POST_MOD_DATE = TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+		 WHERE	BBS_POST_ID = #{bbsPostId}
+		]]>
+	</update>
+	
+	
+	<insert id="insertPostInfo" parameterType="HashMap">
+		/*
+			queryId = insertPostInfo
+		*/
+		<![CDATA[
+		INSERT INTO 
+			BBS_POST(
+				BBS_CATAL_ID,
+				BBS_POST_ID,
+				BBS_POST_TITLE, 
+				BBS_POST_CONTENT, 
+				BBS_POST_REG_DATE, 
+				BBS_POST_REG_ID, 
+				BBS_POST_MOD_DATE, 
+				BBS_POST_MOD_ID, 
+				BBS_POST_STATUS
+			)
+			SELECT 
+					#{bbsCatalId} AS BBS_CATAL_ID,
+					('BP' 
+			        || NVL(SUBSTR(MAX(BBS_POST_ID),3,8), TO_CHAR(SYSDATE,'YYYYMMDD')) 
+			        || CASE WHEN SUBSTR(MAX(BBS_POST_ID),11,3) IS NULL
+			                THEN '001'
+			                ELSE LPAD(TO_CHAR(TO_NUMBER(SUBSTR(MAX(BBS_POST_ID),11,13))+1), 3, '0')
+			                END
+			       ) AS BBS_POST_ID,
+					#{bbsPostTitle} AS BBS_POST_TITLE, 
+					EMPTY_CLOB() AS BBS_POST_CONTENT, 
+					TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') AS BBS_POST_REG_DATE, 
+					#{bbsPostRegId} AS BBS_POST_REG_ID, 
+					TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') AS BBS_POST_MOD_DATE, 
+					#{bbsPostRegId} AS BBS_POST_MOD_ID, 
+					'N' AS BBS_POST_STATUS
+			  FROM BBS_POST 
+			 WHERE SUBSTR(BBS_POST_ID, 3, 8) = TO_CHAR(SYSDATE, 'YYYYMMDD')
+		]]>
+		<selectKey keyProperty="bbsPostId" order="AFTER" resultType="String">
+			SELECT MAX(BBS_POST_ID) AS bbsPostId
+			  FROM BBS_POST
+		</selectKey>
+	</insert>
+	
+	
+	<insert id="insertPostAttach" parameterType="HashMap">
+		/*
+			queryId = insertPostAttach
+		*/
+		<![CDATA[
+		INSERT INTO 
+			BBS_ATTACH(
+				BBS_POST_ID, 
+				BBS_ATTACH_ID, 
+				BBS_ATTACH_SN, 
+				BBS_ATTACH_LOC, 
+				BBS_ATTACH_SAVE_NM, 
+				BBS_ATTACH_ORIGIN_NM,
+				BBS_ATTACH_REG_DT,
+				BBS_ATTACH_REG_ID
+			)
+			SELECT 
+					#{bbsPostId} AS BBS_POST_ID, 
+					('POST_AT' 
+			        || NVL(SUBSTR(MAX(BBS_ATTACH_ID),8,8), TO_CHAR(SYSDATE,'YYYYMMDD')) 
+			        || CASE WHEN SUBSTR(MAX(BBS_ATTACH_ID),16,3) IS NULL
+			                THEN '001'
+			                ELSE LPAD(TO_CHAR(TO_NUMBER(SUBSTR(MAX(BBS_ATTACH_ID),16,3))+1), 3, '0')
+			                END
+			        ) AS BBS_ATTACH_ID, 
+					(NVL(MAX(BBS_ATTACH_SN), 0) + 1) AS BBS_ATTACH_SN, 
+					#{bbsAttachLoc} AS BBS_ATTACH_LOC, 
+					#{bbsAttachSaveNm} AS BBS_ATTACH_SAVE_NM, 
+					#{bbsAttachOriginNm} AS BBS_ATTACH_ORIGIN_NM, 
+					TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') AS BBS_ATTACH_REG_DT, 
+					#{bbsPostRegId} AS BBS_ATTACH_REG_ID
+			  FROM BBS_ATTACH 
+			 WHERE SUBSTR(BBS_ATTACH_ID, 8, 8) = TO_CHAR(SYSDATE, 'YYYYMMDD')
+		]]>
+	</insert>
+	
+	
+	<select id="selectAttachListList" parameterType="HashMap" resultType="customCamelMap">
+		/*
+			queryId = selectAttachListList
+		*/
+		<![CDATA[
+		SELECT  BBS_POST_ID
+		     ,  BBS_ATTACH_ID
+		     ,  BBS_ATTACH_SN
+		     ,  BBS_ATTACH_LOC
+		     ,  BBS_ATTACH_SAVE_NM
+		     ,  BBS_ATTACH_ORIGIN_NM
+		  FROM BBS_ATTACH
+		 WHERE 1 = 1
+		 ]]>
+		 <if test="bbsPostId != null and bbsPostId != ''">
+		   AND BBS_POST_ID = #{bbsPostId} 
+		 </if>
+		 <if test="bbsAttachId != null and bbsAttachId != ''">
+		   AND BBS_ATTACH_ID = #{bbsAttachId}
+		 </if>
+		 <![CDATA[
+		 ORDER BY BBS_ATTACH_ID, BBS_ATTACH_SN
+		 ]]>
+	</select>
+	
+	
+	<insert id="insertRepleInfo" parameterType="HashMap">
+		/*
+			queryId = insertRepleInfo
+		*/
+		<![CDATA[
+		INSERT INTO 
+			BBS_REPLE(
+				BBS_POST_ID, 
+				BBS_REPLE_ID, 
+				BBS_REPLE_CONTENT, 
+				BBS_REPLE_REG_DATE, 
+				BBS_REPLE_REG_ID, 
+				BBS_REPLE_MOD_DATE, 
+				BBS_REPLE_MOD_ID, 
+				BBS_REPLE_DEL_STAT
+			)
+			SELECT 
+					#{bbsPostId} AS BBS_POST_ID, 
+					('BR' 
+					|| NVL(SUBSTR(MAX(BBS_REPLE_ID),3,8), TO_CHAR(SYSDATE,'YYYYMMDD')) 
+					|| CASE WHEN SUBSTR(MAX(BBS_REPLE_ID),11,3) IS NULL
+				            THEN '001'
+				            ELSE LPAD(TO_CHAR(TO_NUMBER(SUBSTR(MAX(BBS_REPLE_ID),11,13))+1), 3, '0')
+				            END
+					) AS BBS_REPLE_ID, 
+					#{bbsRepleContent} AS BBS_REPLE_CONTENT, 
+					TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') AS BBS_REPLE_REG_DATE, 
+					#{bbsRepleRegId} AS BBS_REPLE_REG_ID, 
+					TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') AS BBS_REPLE_MOD_DATE, 
+					#{bbsRepleRegId} AS BBS_REPLE_MOD_ID, 
+					'N' AS BBS_REPLE_DEL_STAT
+			  FROM BBS_REPLE
+			 WHERE SUBSTR(BBS_REPLE_ID, 3, 8) = TO_CHAR(SYSDATE, 'YYYYMMDD')
+		]]>
+	</insert>
+	
+	
+	<update id="deletePostInfo" parameterType="HashMap">
+		/*
+			queryId = deletePostInfo
+		*/
+		<![CDATA[
+		UPDATE 	BBS_POST 
+		   SET 	BBS_POST_STATUS = 'Y'
+		 WHERE	1 = 1
+		]]>
+		<if test="bbsPostId != null and bbsPostId != ''">
+		   AND  BBS_POST_ID = #{bbsPostId}
+		</if>		 
+	</update>
+	
+	
+	<update id="deletePostRepleInfo" parameterType="HashMap">
+		/*
+			queryId = deletePostRepleInfo
+		*/
+		<![CDATA[
+		UPDATE 	BBS_REPLE 
+		   SET 	BBS_REPLE_DEL_STAT = 'Y'
+		 WHERE	1 = 1
+		]]>
+		<if test="bbsPostId != null and bbsPostId != ''">
+		   AND  BBS_POST_ID = #{bbsPostId}
+		</if>
+		<if test="bbsRepleId != null and bbsRepleId != ''">
+		   AND  BBS_REPLE_ID = #{bbsRepleId}
+		</if>
+	</update>
+	
+	
+	<select id="selectUserPostViewCnt" parameterType="HashMap" resultType="int">
+		/*
+			queryId = selectUserPostViewCnt
+		*/
+		<![CDATA[
+		SELECT COUNT(BBS_VIEW_ID)
+		  FROM BBS_VIEWS
+		 WHERE 1 = 1
+		]]>
+		<if test="bbsPostId != null and bbsPostId != ''">
+		   AND BBS_POST_ID = #{bbsPostId}
+		</if>
+		  
+	</select>
+	
+	
+	<insert id="insertUserPostView" parameterType="HashMap">
+		/*
+			queryId = selectUserPostViewCnt
+		*/
+		<![CDATA[
+		INSERT INTO 
+			BBS_VIEWS(
+				BBS_VIEW_ID, 
+				BBS_POST_ID, 
+				BBS_POST_VIEW_USER_ID, 
+				BBS_POST_VIEW_DATE
+			)
+			SELECT  
+					('BV' 
+					|| NVL(SUBSTR(MAX(BBS_VIEW_ID),3,8), TO_CHAR(SYSDATE,'YYYYMMDD')) 
+					|| CASE WHEN SUBSTR(MAX(BBS_VIEW_ID),11,6) IS NULL 
+				            THEN '000001' 
+				            ELSE LPAD(TO_CHAR(TO_NUMBER(SUBSTR(MAX(BBS_VIEW_ID),11,16))+1), 6, '0') 
+				            END 
+					) AS BBS_VIEW_ID, 
+					#{bbsPostId} AS BBS_POST_ID, 
+					#{userId} AS BBS_POST_VIEW_USER_ID, 
+					TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') AS BBS_POST_VIEW_DATE 
+			  FROM BBS_VIEWS 
+			 WHERE SUBSTR(BBS_VIEW_ID, 3, 8) = TO_CHAR(SYSDATE, 'YYYYMMDD') 
+		]]>
+	</insert>
+	
+	<select id="selectPostAttach" parameterType="HashMap" resultType="customCamelMap">
+		/*
+			queryId = selectPostAttach
+		*/
+		<![CDATA[
+		SELECT   BBS_POST_ID
+		       , BBS_ATTACH_ID
+		       , BBS_ATTACH_SN
+		       , BBS_ATTACH_LOC
+		       , BBS_ATTACH_SAVE_NM
+		       , BBS_ATTACH_ORIGIN_NM
+		       , BBS_ATTACH_REG_ID
+		       , BBS_ATTACH_REG_DT
+		  FROM BBS_ATTACH
+		 WHERE 1 = 1
+		]]>
+		<if test="bbsPostId != null and bbsPostId != ''">
+		   AND BBS_POST_ID = #{bbsPostId}
+		</if>
+		<if test="bbsAttachId != null and bbsAttachId != ''">
+		   AND BBS_ATTACH_ID = #{bbsAttachId}
+		</if>
+	</select>
+	
+	
+	<delete id="deleteAttachInfo" parameterType="HashMap">
+		/*
+			queryId = deleteAttachInfo
+		*/
+		<![CDATA[
+		DELETE FROM BBS_ATTACH
+		 WHERE BBS_POST_ID = #{bbsPostId}
+		   AND BBS_ATTACH_ID = #{bbsAttachId}
+		]]>
+	</delete>
+	
+	
+	<select id="selectPostSuggest" parameterType="HashMap" resultType="int">
+		/*
+			queryId = selectPostSuggest
+		*/
+		<![CDATA[
+		SELECT COUNT(1)
+		  FROM BBS_SUGGEST
+		 WHERE 1 = 1
+		]]>
+		<if test="bbsPostId != null and bbsPostId != ''">
+		   AND BBS_POST_ID = #{bbsPostId}
+		</if>
+		<if test="userId != null and userId != ''">
+		   AND BBS_POST_SUGGEST_USER_ID = #{userId}
+		</if>
+	</select>
+	
+	
+	<insert id="insertPostSuggest" parameterType="HashMap">
+		/*
+			queryId = insertPostSuggest
+		*/
+		<![CDATA[
+		INSERT INTO 
+			BBS_SUGGEST(
+				BBS_SUGGEST_ID, 
+				BBS_POST_ID, 
+				BBS_POST_SUGGEST_USER_ID, 
+				BBS_POST_SUGGEST_DATE 
+			)
+			SELECT   'SUG' || TO_CHAR(SYSDATE, 'YYYYMMDD') || 
+				     CASE WHEN SUBSTR(MAX(BBS_SUGGEST_ID),12,16) IS NULL
+				          THEN '000001'
+				          ELSE LPAD(TO_CHAR(TO_NUMBER(SUBSTR(MAX(BBS_SUGGEST_ID),12,16))+1), 6, '0')
+				     END AS BBS_SUGGEST_ID 
+				   , #{bbsPostId} AS BBS_POST_ID 
+				   , #{userId} AS BBS_POST_SUGGEST_USER_ID 
+				   , TO_CHAR(SYSDATE, 'YYYYMMDD') AS BBS_POST_SUGGEST_DATE 
+			  FROM  BBS_SUGGEST 
+			 WHERE  1 = 1 
+			   AND  SUBSTR(BBS_SUGGEST_ID, 4, 8) = TO_CHAR(SYSDATE, 'YYYYMMDD')
+		]]>
+	</insert>
+	
+</mapper>
